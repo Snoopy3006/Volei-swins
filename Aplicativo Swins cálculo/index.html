@@ -1,0 +1,1385 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vôlei de Areia - Controle do Evento</title>
+    <!-- Tailwind CSS CDN (deve vir ANTES da configuração) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts & Font Awesome -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- PWA Web App Manifest (Data URL para funcionar em arquivo único) -->
+    <link rel="manifest" id="pwa-manifest">
+
+    <script>
+        // Gerar Manifest PWA Dinamicamente para arquivo único
+        const manifestData = {
+            "name": "Vôlei de Areia - Organizador",
+            "short_name": "Vôlei Areia",
+            "start_url": ".",
+            "display": "standalone",
+            "background_color": "#0f172a",
+            "theme_color": "#f59e0b",
+            "description": "Organizador de vaquinha, sorteio de times e placar de vôlei de areia",
+            "icons": [
+                {
+                    "src": "https://cdn-icons-png.flaticon.com/512/523/523676.png",
+                    "sizes": "512x512",
+                    "type": "image/png",
+                    "purpose": "any maskable"
+                }
+            ]
+        };
+        const manifestString = JSON.stringify(manifestData);
+        const manifestBlob = new Blob([manifestString], { type: 'application/json' });
+        document.addEventListener("DOMContentLoaded", () => {
+            const manifestLink = document.getElementById('pwa-manifest');
+            if (manifestLink) manifestLink.href = URL.createObjectURL(manifestBlob);
+        });
+
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        sand: {
+                            50: '#fffdfa',
+                            100: '#fdf8ef',
+                            200: '#f7ebce',
+                            300: '#f0d8a4',
+                            400: '#e5b966',
+                        },
+                        beach: {
+                            blue: '#0284c7',
+                            sky: '#38bdf8',
+                            sun: '#eab308',
+                            coral: '#f97316'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background: linear-gradient(135deg, #fdf8ef 0%, #e0f2fe 100%);
+            min-height: 100vh;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+        .dark body {
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            transition: background-color 0.3s ease, border-color 0.3s ease;
+        }
+        .dark .glass-card {
+            background: rgba(30, 41, 59, 0.85);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(51, 65, 85, 0.8);
+        }
+    </style>
+</head>
+<body class="text-slate-800 dark:text-slate-100 antialiased font-sans pb-12">
+
+    <!-- Header / Navbar -->
+    <header class="bg-gradient-to-r from-amber-500 via-orange-500 to-sky-600 dark:from-slate-900 dark:via-sky-950 dark:to-slate-900 text-white shadow-lg sticky top-0 z-50 transition-colors">
+        <div class="max-w-5xl mx-auto px-4 py-4 flex flex-wrap justify-between items-center gap-4">
+            <div class="flex items-center space-x-3">
+                <div class="bg-white/20 dark:bg-white/10 p-2.5 rounded-full text-white backdrop-blur-sm">
+                    <i class="fa-solid fa-volleyball text-2xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl md:text-2xl font-extrabold tracking-tight">Vôlei de Areia 🏐</h1>
+                    <p class="text-xs text-amber-100 dark:text-sky-300 font-medium">Painel do Organizador</p>
+                </div>
+            </div>
+            
+            <div class="flex items-center space-x-3">
+                <!-- Theme Toggle Button -->
+                <button onclick="toggleTheme()" id="theme-toggle" class="bg-white/20 hover:bg-white/30 dark:bg-slate-800 dark:hover:bg-slate-700 text-white px-3 py-1.5 rounded-xl backdrop-blur-sm text-sm font-medium transition flex items-center space-x-2" title="Alternar Modo Escuro/Claro">
+                    <i id="theme-icon" class="fa-solid fa-moon"></i>
+                    <span id="theme-text" class="hidden sm:inline">Escuro</span>
+                </button>
+
+                <!-- Botão de Instalar App (PWA) -->
+                <button id="pwa-install-btn" onclick="installPWA()" class="hidden bg-emerald-500 hover:bg-emerald-600 text-white px-3 py-1.5 rounded-xl backdrop-blur-sm text-sm font-bold transition flex items-center space-x-1.5 shadow-md">
+                    <i class="fa-solid fa-download"></i>
+                    <span class="hidden sm:inline">Instalar App</span>
+                </button>
+
+                <div class="flex items-center space-x-2 bg-white/10 dark:bg-slate-800/60 px-3 py-1.5 rounded-xl backdrop-blur-sm text-sm">
+                    <i class="fa-solid fa-calendar-day text-amber-200 dark:text-amber-400"></i>
+                    <span id="current-date" class="font-medium">Hoje</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="max-w-5xl mx-auto px-4 mt-6 space-y-6">
+
+        <!-- Tab Navigation Bar -->
+        <div class="flex border-b border-slate-200 dark:border-slate-700 space-x-4 overflow-x-auto">
+            <button id="tab-btn-vaquinha" onclick="switchTab('vaquinha')" class="pb-3 px-2 font-bold text-sm border-b-2 border-amber-500 text-amber-600 dark:text-amber-400 flex items-center space-x-2 whitespace-nowrap">
+                <i class="fa-solid fa-hand-holding-dollar"></i>
+                <span>Vaquinha & Financeiro</span>
+            </button>
+            <button id="tab-btn-teams" onclick="switchTab('teams')" class="pb-3 px-2 font-semibold text-sm border-b-2 border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 flex items-center space-x-2 whitespace-nowrap">
+                <i class="fa-solid fa-arrows-spin"></i>
+                <span>Roleta & Sorteio de Times</span>
+            </button>
+            <button id="tab-btn-matches" onclick="switchTab('matches')" class="pb-3 px-2 font-semibold text-sm border-b-2 border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 flex items-center space-x-2 whitespace-nowrap">
+                <i class="fa-solid fa-trophy"></i>
+                <span>Histórico de Partidas</span>
+            </button>
+        </div>
+
+        <!-- TAB CONTENT 1: VAQUINHA (PREVIOUS CONTENT) -->
+        <div id="tab-content-vaquinha" class="space-y-6">
+            <!-- Top Cards Dashboard / Metas -->
+            <section class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <!-- Arrecadado -->
+                <div class="glass-card rounded-2xl p-5 shadow-sm border-l-4 border-emerald-500 flex justify-between items-center">
+                    <div>
+                        <p class="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Total Arrecadado</p>
+                        <h3 class="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-1" id="stat-collected">R$ 0,00</h3>
+                        <p class="text-xs text-slate-500 dark:text-slate-400 mt-1" id="stat-paid-count">0 pessoas pagaram</p>
+                    </div>
+                    <div class="w-12 h-12 rounded-full bg-emerald-100 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-xl">
+                        <i class="fa-solid fa-hand-holding-dollar"></i>
+                    </div>
+                </div>
+
+                <!-- Pendente -->
+                <div class="glass-card rounded-2xl p-5 shadow-sm border-l-4 border-amber-500 flex justify-between items-center">
+                    <div>
+                        <p class="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Total Pendente</p>
+                        <h3 class="text-2xl font-black text-amber-600 dark:text-amber-400 mt-1" id="stat-pending">R$ 0,00</h3>
+                        <p class="text-xs text-slate-500 dark:text-slate-400 mt-1" id="stat-pending-count">0 pendentes</p>
+                    </div>
+                    <div class="w-12 h-12 rounded-full bg-amber-100 dark:bg-amber-950/80 text-amber-600 dark:text-amber-400 flex items-center justify-center text-xl">
+                        <i class="fa-solid fa-clock"></i>
+                    </div>
+                </div>
+
+                <!-- Meta do Aluguel -->
+                <div class="glass-card rounded-2xl p-5 shadow-sm border-l-4 border-sky-500 flex flex-col justify-between">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Custo da Quadra / Luz</p>
+                            <h3 class="text-2xl font-black text-sky-700 dark:text-sky-400 mt-1" id="stat-goal-display">R$ 0,00</h3>
+                        </div>
+                        <button onclick="openGoalModal()" class="text-xs bg-sky-100 dark:bg-sky-950 text-sky-700 dark:text-sky-300 hover:bg-sky-200 dark:hover:bg-sky-900 font-semibold px-2.5 py-1 rounded-lg transition">
+                            <i class="fa-solid fa-pen text-xs mr-1"></i>Editar
+                        </button>
+                    </div>
+                    <!-- Progress Bar -->
+                    <div class="mt-3">
+                        <div class="flex justify-between text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">
+                            <span>Progresso</span>
+                            <span id="goal-percentage">0%</span>
+                        </div>
+                        <div class="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2.5 overflow-hidden">
+                            <div id="goal-progress-bar" class="bg-gradient-to-r from-sky-400 to-emerald-500 h-2.5 rounded-full transition-all duration-500" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Chave PIX Rápida & Avisos -->
+            <section class="glass-card rounded-2xl p-4 shadow-sm flex flex-col md:flex-row justify-between items-center gap-4">
+                <div class="flex items-center space-x-3">
+                    <div class="bg-amber-100 dark:bg-amber-950/80 text-amber-700 dark:text-amber-400 p-3 rounded-xl">
+                        <i class="fa-solid fa-qrcode text-xl"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-sm text-slate-800 dark:text-slate-100">Chave PIX para Cobrança</h4>
+                        <p class="text-xs text-slate-500 dark:text-slate-400" id="pix-key-display">Nenhuma chave cadastrada</p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-2 w-full md:w-auto">
+                    <button onclick="copyPixKey()" class="flex-1 md:flex-none bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-xs px-4 py-2.5 rounded-xl shadow transition flex items-center justify-center">
+                        <i class="fa-regular fa-copy mr-2"></i> Copiar PIX
+                    </button>
+                    <button onclick="openPixModal()" class="bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-medium text-xs px-3 py-2.5 rounded-xl transition">
+                        <i class="fa-solid fa-gear"></i>
+                    </button>
+                </div>
+            </section>
+
+            <!-- Formulário e Tabela de Controle -->
+            <section class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+                <!-- Formulário de Adicionar Participante -->
+                <div class="lg:col-span-1">
+                    <div class="glass-card rounded-2xl p-5 shadow-sm sticky top-24">
+                        <h3 class="font-bold text-slate-800 dark:text-slate-100 text-base mb-4 flex items-center">
+                            <i class="fa-solid fa-user-plus text-amber-500 dark:text-amber-400 mr-2"></i> Adicionar à Vaquinha
+                        </h3>
+
+                        <form id="add-participant-form" onsubmit="handleAddParticipant(event)" class="space-y-4">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Nome do Jogador(a)</label>
+                                <input type="text" id="input-name" tabindex="1" required placeholder="Ex: Lucas Gabriel" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white/70 dark:bg-slate-800/80 text-sm dark:text-slate-100">
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Valor Contribuído (R$)</label>
+                                    <input type="number" step="0.01" min="0" id="input-amount" tabindex="2" required placeholder="15.00" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white/70 dark:bg-slate-800/80 text-sm dark:text-slate-100">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Gênero</label>
+                                    <select id="input-gender" tabindex="3" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white/70 dark:bg-slate-800/80 text-sm font-medium dark:text-slate-100">
+                                        <option value="M">♂ Masculino</option>
+                                        <option value="F">♀ Feminino</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Status Inicial</label>
+                                <select id="input-status" tabindex="4" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white/70 dark:bg-slate-800/80 text-sm font-medium dark:text-slate-100">
+                                    <option value="pago" class="text-emerald-700 dark:text-emerald-400 font-bold">🟢 Pago (Depositado)</option>
+                                    <option value="pendente" class="text-amber-700 dark:text-amber-400 font-bold" selected>🟡 Pendente</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Forma de Pagamento (Opcional)</label>
+                                <select id="input-method" tabindex="5" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white/70 dark:bg-slate-800/80 text-sm dark:text-slate-100">
+                                    <option value="PIX">PIX</option>
+                                    <option value="Dinheiro">Dinheiro em Espécie</option>
+                                    <option value="Outro">Outro</option>
+                                </select>
+                            </div>
+
+                            <button type="submit" tabindex="6" class="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 dark:from-amber-600 dark:to-orange-600 text-white font-bold py-3 px-4 rounded-xl shadow-md transition transform active:scale-95 flex items-center justify-center">
+                                <i class="fa-solid fa-plus-circle mr-2"></i> Registrar Entrada
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Tabela de Participantes e Filtros -->
+                <div class="lg:col-span-2 space-y-4">
+                    <div class="glass-card rounded-2xl p-5 shadow-sm">
+                        
+                        <!-- Header da Tabela com Filtro e Pesquisa -->
+                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
+                            <div>
+                                <h3 class="font-bold text-slate-800 dark:text-slate-100 text-base">Lista da Vaquinha</h3>
+                                <p class="text-xs text-slate-500 dark:text-slate-400">Gerencie quem já pagou e quem falta pagar</p>
+                            </div>
+
+                            <div class="flex items-center space-x-2 w-full sm:w-auto">
+                                <!-- Filtro de Status -->
+                                <select id="filter-status" onchange="renderList()" class="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-600 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-amber-400">
+                                    <option value="todos">Todos</option>
+                                    <option value="pago">Apenas Pagos</option>
+                                    <option value="pendente">Apenas Pendentes</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Tabela de Registros -->
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse">
+                                <thead>
+                                    <tr class="border-b border-slate-200 dark:border-slate-700 text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                                        <th class="py-3 px-3">Nome</th>
+                                        <th class="py-3 px-3">Valor</th>
+                                        <th class="py-3 px-3">Status</th>
+                                        <th class="py-3 px-3 text-right">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="participant-list-body" class="divide-y divide-slate-100 dark:divide-slate-800 text-sm">
+                                    <!-- Linhas geradas via JavaScript -->
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Mensagem quando estiver vazio -->
+                        <div id="empty-state" class="hidden text-center py-8">
+                            <div class="w-12 h-12 bg-amber-50 dark:bg-amber-950/40 text-amber-500 dark:text-amber-400 rounded-full flex items-center justify-center mx-auto mb-2 text-xl">
+                                <i class="fa-solid fa-volleyball"></i>
+                            </div>
+                            <p class="text-sm font-semibold text-slate-600 dark:text-slate-300">Nenhum participante encontrado.</p>
+                            <p class="text-xs text-slate-400 dark:text-slate-500">Adicione alguém no formulário ao lado.</p>
+                        </div>
+
+                    </div>
+                </div>
+
+            </section>
+        </div>
+
+        <!-- TAB CONTENT 2: ROLETA E TIMES (NEW FEATURE) -->
+        <div id="tab-content-teams" class="hidden space-y-6">
+            
+            <section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Seção da Roleta -->
+                <div class="glass-card rounded-2xl p-5 shadow-sm flex flex-col items-center justify-between relative overflow-hidden">
+                    <div class="w-full text-left mb-2">
+                        <h3 class="font-bold text-slate-800 dark:text-slate-100 text-base flex items-center">
+                            <i class="fa-solid fa-arrows-spin text-amber-500 dark:text-amber-400 mr-2"></i> Roleta dos Jogadores
+                        </h3>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">Arraste para girar manualmente ou use o botão de giro automático</p>
+                    </div>
+
+                    <!-- Canvas da Roleta com Ponteiro -->
+                    <div class="relative my-4 flex items-center justify-center select-none">
+                        <!-- Seta / Ponteiro Indicador -->
+                        <div class="absolute -top-3 z-10 text-rose-500 text-3xl filter drop-shadow">
+                            <i class="fa-solid fa-caret-down"></i>
+                        </div>
+                        <canvas id="roulette-canvas" width="300" height="300" class="max-w-full h-auto cursor-grab active:cursor-grabbing rounded-full shadow-md touch-none"></canvas>
+                    </div>
+
+                    <!-- Botão de Girar Automático -->
+                    <button onclick="spinRoulette()" id="spin-btn" class="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-bold py-3 px-6 rounded-xl shadow-md transition transform active:scale-95 flex items-center justify-center text-sm">
+                        <i class="fa-solid fa-play mr-2"></i> Giro Automático
+                    </button>
+                </div>
+
+                <!-- Seção de Divisão Automática de Times -->
+                <div class="glass-card rounded-2xl p-5 shadow-sm flex flex-col justify-between space-y-4">
+                    <div>
+                        <h3 class="font-bold text-slate-800 dark:text-slate-100 text-base flex items-center mb-1">
+                            <i class="fa-solid fa-users-gear text-sky-500 dark:text-sky-400 mr-2"></i> Sorteio & Configuração de Times
+                        </h3>
+                        <p class="text-xs text-slate-500 dark:text-slate-400 mb-4">Divida automaticamente ou aloque jogadores manualmente abaixo</p>
+                        
+                        <div class="grid grid-cols-2 gap-3 mb-4">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Jogadores por Time</label>
+                                <select id="team-size-select" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white/80 dark:bg-slate-800/80 text-sm dark:text-slate-100 focus:ring-2 focus:ring-sky-400 focus:outline-none">
+                                    <option value="2">Duplas (2v2)</option>
+                                    <option value="3">Trios (3v3)</option>
+                                    <option value="4" selected>Quartetos (4v4)</option>
+                                    <option value="6">Sextetos (6v6)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Filtro de Jogadores</label>
+                                <select id="team-filter-select" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white/80 dark:bg-slate-800/80 text-sm dark:text-slate-100 focus:ring-2 focus:ring-sky-400 focus:outline-none">
+                                    <option value="todos">Todos os cadastrados</option>
+                                    <option value="pago">Apenas quem pagou</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="flex flex-col sm:flex-row gap-2">
+                            <button onclick="autoSortTeams()" class="flex-1 bg-sky-600 hover:bg-sky-700 text-white font-bold py-2.5 px-4 rounded-xl shadow transition transform active:scale-95 flex items-center justify-center text-sm">
+                                <i class="fa-solid fa-shuffle mr-2"></i> Auto-Dividir
+                            </button>
+                            <button onclick="resetTeams()" class="bg-rose-500 hover:bg-rose-600 text-white font-bold py-2.5 px-4 rounded-xl shadow transition transform active:scale-95 flex items-center justify-center text-sm">
+                                <i class="fa-solid fa-rotate-left mr-2"></i> Desfazer Times
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="border-t border-slate-200 dark:border-slate-700 pt-3">
+                        <p class="text-xs text-slate-500 dark:text-slate-400">Dica: Altere o time de qualquer jogador diretamente no menu suspenso de cada cartão de time ou ao sortear na roleta.</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Grid de Exibição dos Times Gerados -->
+            <section id="teams-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <!-- Cards de times gerados via JS -->
+            </section>
+
+        </div>
+
+        <!-- TAB CONTENT 3: HISTÓRICO DE PARTIDAS (NEW FEATURE) -->
+        <div id="tab-content-matches" class="hidden space-y-6">
+            <section class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Formulário para Registrar Partida -->
+                <div class="lg:col-span-1">
+                    <div class="glass-card rounded-2xl p-5 shadow-sm sticky top-24">
+                        <h3 class="font-bold text-slate-800 dark:text-slate-100 text-base mb-4 flex items-center">
+                            <i class="fa-solid fa-clipboard-check text-amber-500 dark:text-amber-400 mr-2"></i> Registrar Resultado
+                        </h3>
+
+                        <form id="add-match-form" onsubmit="handleAddMatch(event)" class="space-y-4">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Data da Partida</label>
+                                <input type="date" id="match-date" required class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white/70 dark:bg-slate-800/80 text-sm dark:text-slate-100 focus:ring-2 focus:ring-amber-400 focus:outline-none">
+                            </div>
+
+                            <!-- Time A -->
+                            <div class="grid grid-cols-3 gap-2 items-center">
+                                <div class="col-span-2">
+                                    <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Time A</label>
+                                    <input type="text" id="match-team-a" required placeholder="Ex: Time 1" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white/70 dark:bg-slate-800/80 text-sm dark:text-slate-100 focus:ring-2 focus:ring-amber-400 focus:outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Pontos</label>
+                                    <input type="number" min="0" id="match-score-a" required placeholder="21" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white/70 dark:bg-slate-800/80 text-sm dark:text-slate-100 focus:ring-2 focus:ring-amber-400 focus:outline-none">
+                                </div>
+                            </div>
+
+                            <!-- Time B -->
+                            <div class="grid grid-cols-3 gap-2 items-center">
+                                <div class="col-span-2">
+                                    <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Time B</label>
+                                    <input type="text" id="match-team-b" required placeholder="Ex: Time 2" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white/70 dark:bg-slate-800/80 text-sm dark:text-slate-100 focus:ring-2 focus:ring-amber-400 focus:outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Pontos</label>
+                                    <input type="number" min="0" id="match-score-b" required placeholder="18" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white/70 dark:bg-slate-800/80 text-sm dark:text-slate-100 focus:ring-2 focus:ring-amber-400 focus:outline-none">
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Observações (Opcional)</label>
+                                <input type="text" id="match-notes" placeholder="Ex: Set de 25 pontos / Final" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white/70 dark:bg-slate-800/80 text-sm dark:text-slate-100 focus:ring-2 focus:ring-amber-400 focus:outline-none">
+                            </div>
+
+                            <button type="submit" class="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-bold py-3 px-4 rounded-xl shadow-md transition transform active:scale-95 flex items-center justify-center text-sm">
+                                <i class="fa-solid fa-plus-circle mr-2"></i> Salvar Placar
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Lista de Partidas Registradas -->
+                <div class="lg:col-span-2 space-y-4">
+                    <div class="glass-card rounded-2xl p-5 shadow-sm">
+                        <div class="flex justify-between items-center mb-4">
+                            <div>
+                                <h3 class="font-bold text-slate-800 dark:text-slate-100 text-base">Histórico de Partidas</h3>
+                                <p class="text-xs text-slate-500 dark:text-slate-400">Resultados dos jogos gravados</p>
+                            </div>
+                            <span id="match-count-badge" class="text-xs bg-amber-100 dark:bg-amber-950/80 text-amber-700 dark:text-amber-300 px-3 py-1 rounded-full font-bold">0 jogos</span>
+                        </div>
+
+                        <div id="matches-list-container" class="space-y-3">
+                            <!-- Cards de jogos gerados via JS -->
+                        </div>
+
+                        <div id="empty-matches-state" class="hidden text-center py-8">
+                            <div class="w-12 h-12 bg-sky-50 dark:bg-sky-950/40 text-sky-500 dark:text-sky-400 rounded-full flex items-center justify-center mx-auto mb-2 text-xl">
+                                <i class="fa-solid fa-trophy"></i>
+                            </div>
+                            <p class="text-sm font-semibold text-slate-600 dark:text-slate-300">Nenhum placar registrado ainda.</p>
+                            <p class="text-xs text-slate-400 dark:text-slate-500">Cadastre a primeira partida ao lado!</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+    </main>
+
+    <!-- Modal Editar Nome do Time -->
+    <div id="rename-team-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
+        <form onsubmit="handleSaveTeamName(event)" class="bg-white dark:bg-slate-800 rounded-2xl max-w-sm w-full p-6 shadow-2xl space-y-4 border dark:border-slate-700">
+            <h3 class="text-lg font-bold text-slate-800 dark:text-slate-100">Renomear Time</h3>
+            <p class="text-xs text-slate-500 dark:text-slate-400">Digite o novo nome para este time.</p>
+            <div>
+                <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Nome do Time</label>
+                <input type="text" id="rename-team-input" required placeholder="Ex: Paredão da Areia" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 text-sm focus:ring-2 focus:ring-amber-500 focus:outline-none">
+            </div>
+            <div class="flex justify-end space-x-2">
+                <button type="button" onclick="closeRenameTeamModal()" class="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg">Cancelar</button>
+                <button type="submit" class="px-4 py-2 text-xs font-semibold bg-amber-500 hover:bg-amber-600 text-white rounded-lg shadow">Salvar Nome</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Modal Resultado Sorteio Roleta -->
+    <div id="roulette-winner-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl max-w-sm w-full p-6 shadow-2xl space-y-4 border dark:border-slate-700 text-center">
+            <div class="w-16 h-16 bg-amber-100 dark:bg-amber-950/80 text-amber-500 rounded-full flex items-center justify-center mx-auto text-3xl">
+                <i class="fa-solid fa-trophy"></i>
+            </div>
+            <h3 class="text-xl font-black text-slate-800 dark:text-slate-100">Jogador Sorteado!</h3>
+            <p class="text-2xl font-black text-amber-600 dark:text-amber-400 py-1" id="roulette-winner-name">Nome</p>
+            
+            <div class="text-left bg-slate-50 dark:bg-slate-900/60 p-3 rounded-xl border border-slate-200 dark:border-slate-700">
+                <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Atribuir a um time agora:</label>
+                <select id="modal-player-team-select" onchange="assignWinnerTeam(this.value)" class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-semibold text-slate-700 dark:text-slate-200">
+                    <option value="Time 1">Time 1</option>
+                    <option value="Time 2">Time 2</option>
+                    <option value="Time 3">Time 3</option>
+                    <option value="Time 4">Time 4</option>
+                    <option value="Banco">Banco</option>
+                    <option value="Sem Time">Sem Time</option>
+                </select>
+            </div>
+
+            <button onclick="closeRouletteModal()" class="w-full py-2.5 text-xs font-bold bg-amber-500 hover:bg-amber-600 text-white rounded-xl shadow">Confirmar / Fechar</button>
+        </div>
+    </div>
+
+    <!-- Modal Editar Meta da Quadra -->
+    <div id="goal-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
+        <form onsubmit="handleSaveGoal(event)" class="bg-white dark:bg-slate-800 rounded-2xl max-w-sm w-full p-6 shadow-2xl space-y-4 border dark:border-slate-700">
+            <h3 class="text-lg font-bold text-slate-800 dark:text-slate-100">Definir Meta da Quadra</h3>
+            <p class="text-xs text-slate-500 dark:text-slate-400">Informe quanto custará o aluguel da quadra e iluminação.</p>
+            <div>
+                <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Valor Total da Quadra (R$)</label>
+                <input type="number" step="0.01" id="goal-input" required class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 text-sm focus:ring-2 focus:ring-sky-500 focus:outline-none">
+            </div>
+            <div class="flex justify-end space-x-2">
+                <button type="button" onclick="closeGoalModal()" class="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg">Cancelar</button>
+                <button type="submit" class="px-4 py-2 text-xs font-semibold bg-sky-600 hover:bg-sky-700 text-white rounded-lg shadow">Salvar Meta</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Modal Configurar Chave PIX -->
+    <div id="pix-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
+        <form onsubmit="handleSavePixKey(event)" class="bg-white dark:bg-slate-800 rounded-2xl max-w-sm w-full p-6 shadow-2xl space-y-4 border dark:border-slate-700">
+            <h3 class="text-lg font-bold text-slate-800 dark:text-slate-100">Configurar Chave PIX</h3>
+            <p class="text-xs text-slate-500 dark:text-slate-400">Insira a chave PIX onde o grupo deve fazer os depósitos.</p>
+            <div>
+                <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Sua Chave PIX (CPF/Celular/E-mail/Aleatória)</label>
+                <input type="text" id="pix-input" required placeholder="ex: 85999998888 ou meuemail@pix.com" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 text-sm focus:ring-2 focus:ring-amber-500 focus:outline-none">
+            </div>
+            <div class="flex justify-end space-x-2">
+                <button type="button" onclick="closePixModal()" class="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg">Cancelar</button>
+                <button type="submit" class="px-4 py-2 text-xs font-semibold bg-amber-500 hover:bg-amber-600 text-white rounded-lg shadow">Salvar PIX</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Feedback Toast Notification -->
+    <div id="toast" class="fixed bottom-5 right-5 bg-slate-800 dark:bg-slate-900 border dark:border-slate-700 text-white text-xs px-4 py-3 rounded-xl shadow-xl flex items-center space-x-2 opacity-0 pointer-events-none transition-all duration-300 z-50">
+        <i id="toast-icon" class="fa-solid fa-circle-check text-emerald-400"></i>
+        <span id="toast-message">Mensagem de teste</span>
+    </div>
+
+    <!-- Application Script -->
+    <script>
+        // PWA Offline Service Worker Registration
+        let deferredPrompt;
+        if ('serviceWorker' in navigator) {
+            const swCode = `
+                const CACHE_NAME = 'volei-app-v1';
+                const urlsToCache = [
+                    './',
+                    'https://cdn.tailwindcss.com',
+                    'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap',
+                    'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css'
+                ];
+
+                self.addEventListener('install', event => {
+                    event.waitUntil(
+                        caches.open(CACHE_NAME).then(cache => {
+                            return cache.addAll(urlsToCache);
+                        })
+                    );
+                    self.skipWaiting();
+                });
+
+                self.addEventListener('fetch', event => {
+                    event.respondWith(
+                        caches.match(event.request).then(response => {
+                            return response || fetch(event.request).catch(() => caches.match('./'));
+                        })
+                    );
+                });
+            `;
+
+            const blob = new Blob([swCode], { type: 'text/javascript' });
+            const swUrl = URL.createObjectURL(blob);
+            navigator.serviceWorker.register(swUrl).catch(err => console.log('SW registration error:', err));
+        }
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            const installBtn = document.getElementById('pwa-install-btn');
+            if (installBtn) installBtn.classList.remove('hidden');
+        });
+
+        function installPWA() {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                deferredPrompt.userChoice.then((choiceResult) => {
+                    if (choiceResult.outcome === 'accepted') {
+                        showToast('Aplicativo instalado no celular!', 'success');
+                    }
+                    deferredPrompt = null;
+                    const installBtn = document.getElementById('pwa-install-btn');
+                    if (installBtn) installBtn.classList.add('hidden');
+                });
+            }
+        }
+
+        // Theme State Management
+        let currentTheme = localStorage.getItem('volei_theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+
+        function applyTheme(theme) {
+            currentTheme = theme;
+            const html = document.documentElement;
+            const icon = document.getElementById('theme-icon');
+            const text = document.getElementById('theme-text');
+
+            if (theme === 'dark') {
+                html.classList.add('dark');
+                if (icon) icon.className = 'fa-solid fa-sun text-amber-400';
+                if (text) text.innerText = 'Claro';
+            } else {
+                html.classList.remove('dark');
+                if (icon) icon.className = 'fa-solid fa-moon';
+                if (text) text.innerText = 'Escuro';
+            }
+            localStorage.setItem('volei_theme', theme);
+            drawRoulette();
+        }
+
+        function toggleTheme() {
+            applyTheme(currentTheme === 'dark' ? 'light' : 'dark');
+        }
+
+        // Data State
+        let participants = JSON.parse(localStorage.getItem('volei_participants')) || [
+            { id: 1, name: 'Carlos Eduardo', gender: 'M', amount: 15.00, status: 'pago', method: 'PIX', team: 'Time 1' },
+            { id: 2, name: 'Mariana Silva', gender: 'F', amount: 15.00, status: 'pago', method: 'PIX', team: 'Time 1' },
+            { id: 3, name: 'Felipe Santos', gender: 'M', amount: 15.00, status: 'pendente', method: 'PIX', team: 'Time 2' }
+        ];
+
+        let matches = JSON.parse(localStorage.getItem('volei_matches')) || [];
+        let courtGoal = parseFloat(localStorage.getItem('volei_court_goal')) || 120.00;
+        let pixKey = localStorage.getItem('volei_pix_key') || 'suachavepix@email.com';
+        let currentWinnerId = null;
+        let editingTeamOldName = null;
+
+        // Tab Switch logic
+        function switchTab(tabName) {
+            const btnVaquinha = document.getElementById('tab-btn-vaquinha');
+            const btnTeams = document.getElementById('tab-btn-teams');
+            const btnMatches = document.getElementById('tab-btn-matches');
+
+            const contentVaquinha = document.getElementById('tab-content-vaquinha');
+            const contentTeams = document.getElementById('tab-content-teams');
+            const contentMatches = document.getElementById('tab-content-matches');
+
+            // Hide all
+            contentVaquinha.classList.add('hidden');
+            contentTeams.classList.add('hidden');
+            contentMatches.classList.add('hidden');
+
+            const activeClass = 'pb-3 px-2 font-bold text-sm border-b-2 border-amber-500 text-amber-600 dark:text-amber-400 flex items-center space-x-2 whitespace-nowrap';
+            const inactiveClass = 'pb-3 px-2 font-semibold text-sm border-b-2 border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 flex items-center space-x-2 whitespace-nowrap';
+
+            btnVaquinha.className = inactiveClass;
+            btnTeams.className = inactiveClass;
+            btnMatches.className = inactiveClass;
+
+            if (tabName === 'vaquinha') {
+                contentVaquinha.classList.remove('hidden');
+                btnVaquinha.className = activeClass;
+            } else if (tabName === 'teams') {
+                contentTeams.classList.remove('hidden');
+                btnTeams.className = activeClass;
+                drawRoulette();
+                renderTeams();
+            } else if (tabName === 'matches') {
+                contentMatches.classList.remove('hidden');
+                btnMatches.className = activeClass;
+                renderMatches();
+            }
+        }
+
+        // Initialize App
+        window.onload = function() {
+            // Apply Saved Theme
+            applyTheme(currentTheme);
+
+            // Set Today's Date in Header
+            const options = { weekday: 'short', day: 'numeric', month: 'short' };
+            document.getElementById('current-date').innerText = new Date().toLocaleDateString('pt-BR', options);
+
+            // Set Today's Date in Match Form Input
+            const todayStr = new Date().toISOString().split('T')[0];
+            const matchDateInput = document.getElementById('match-date');
+            if (matchDateInput) matchDateInput.value = todayStr;
+
+            document.getElementById('pix-key-display').innerText = pixKey;
+            
+            renderList();
+            drawRoulette();
+            renderTeams();
+            renderMatches();
+        };
+
+        // Save data to localStorage
+        function saveData() {
+            localStorage.setItem('volei_participants', JSON.stringify(participants));
+            localStorage.setItem('volei_matches', JSON.stringify(matches));
+            localStorage.setItem('volei_court_goal', courtGoal);
+            localStorage.setItem('volei_pix_key', pixKey);
+        }
+
+        // Render Participant List & Update Dashboard Stats
+        function renderList() {
+            const listBody = document.getElementById('participant-list-body');
+            const filterValue = document.getElementById('filter-status').value;
+            const emptyState = document.getElementById('empty-state');
+            
+            listBody.innerHTML = '';
+
+            // Filtering
+            const filteredParticipants = participants.filter(p => {
+                if (filterValue === 'todos') return true;
+                return p.status === filterValue;
+            });
+
+            if (filteredParticipants.length === 0) {
+                emptyState.classList.remove('hidden');
+            } else {
+                emptyState.classList.add('hidden');
+            }
+
+            // Render Rows
+            filteredParticipants.forEach(item => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-slate-50/60 dark:hover:bg-slate-800/50 transition';
+
+                const isPaid = item.status === 'pago';
+                const statusBadge = isPaid 
+                    ? `<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-400"><i class="fa-solid fa-circle-check mr-1 text-[10px]"></i> Pago</span>`
+                    : `<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-400"><i class="fa-solid fa-clock mr-1 text-[10px]"></i> Pendente</span>`;
+
+                const amountColorClass = isPaid 
+                    ? 'text-emerald-600 dark:text-emerald-400 font-bold' 
+                    : 'text-rose-600 dark:text-rose-400 font-bold';
+
+                const genderSymbol = item.gender === 'F' 
+                    ? `<span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-pink-100 dark:bg-pink-950/80 text-pink-600 dark:text-pink-400 font-black text-xs ml-1 shadow-sm" title="Feminino">♀</span>`
+                    : `<span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-950/80 text-blue-600 dark:text-blue-400 font-black text-xs ml-1 shadow-sm" title="Masculino">♂</span>`;
+
+                tr.innerHTML = `
+                    <td class="py-3 px-3 font-medium text-slate-800 dark:text-slate-100">
+                        <div class="flex items-center space-x-1.5">
+                            <span>${escapeHtml(item.name)}</span>
+                            ${genderSymbol}
+                        </div>
+                        <span class="block text-[11px] text-slate-400 dark:text-slate-500 font-normal">${item.method || 'PIX'}</span>
+                    </td>
+                    <td class="py-3 px-3 ${amountColorClass}">R$ ${item.amount.toFixed(2).replace('.', ',')}</td>
+                    <td class="py-3 px-3">${statusBadge}</td>
+                    <td class="py-3 px-3 text-right space-x-1">
+                        <button onclick="toggleStatus(${item.id})" title="Alterar status" class="p-1.5 rounded-lg text-slate-500 dark:text-slate-400 hover:text-sky-600 dark:hover:text-sky-400 hover:bg-sky-50 dark:hover:bg-sky-950/50 transition">
+                            <i class="fa-solid fa-rotate text-sm"></i>
+                        </button>
+                        <button onclick="deleteParticipant(${item.id})" title="Remover" class="p-1.5 rounded-lg text-slate-500 dark:text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/50 transition">
+                            <i class="fa-regular fa-trash-can text-sm"></i>
+                        </button>
+                    </td>
+                `;
+                listBody.appendChild(tr);
+            });
+
+            // Update Stats
+            updateDashboard();
+            drawRoulette();
+            renderTeams();
+        }
+
+        // Calculate and Update Dashboard KPIs
+        function updateDashboard() {
+            const totalCollected = participants
+                .filter(p => p.status === 'pago')
+                .reduce((sum, p) => sum + p.amount, 0);
+
+            const totalPending = participants
+                .filter(p => p.status === 'pendente')
+                .reduce((sum, p) => sum + p.amount, 0);
+
+            const paidCount = participants.filter(p => p.status === 'pago').length;
+            const pendingCount = participants.filter(p => p.status === 'pendente').length;
+
+            document.getElementById('stat-collected').innerText = `R$ ${totalCollected.toFixed(2).replace('.', ',')}`;
+            document.getElementById('stat-paid-count').innerText = `${paidCount} pessoa(s) pagaram`;
+
+            document.getElementById('stat-pending').innerText = `R$ ${totalPending.toFixed(2).replace('.', ',')}`;
+            document.getElementById('stat-pending-count').innerText = `${pendingCount} pendente(s)`;
+
+            document.getElementById('stat-goal-display').innerText = `R$ ${courtGoal.toFixed(2).replace('.', ',')}`;
+
+            // Calculate Progress Bar
+            const progress = courtGoal > 0 ? Math.min((totalCollected / courtGoal) * 100, 100) : 0;
+            document.getElementById('goal-percentage').innerText = `${progress.toFixed(0)}%`;
+            document.getElementById('goal-progress-bar').style.width = `${progress}%`;
+        }
+
+        // Add Participant
+        function handleAddParticipant(e) {
+            e.preventDefault();
+            const nameInput = document.getElementById('input-name');
+            const amountInput = document.getElementById('input-amount');
+            const genderInput = document.getElementById('input-gender');
+            const statusInput = document.getElementById('input-status');
+            const methodInput = document.getElementById('input-method');
+
+            const name = nameInput.value.trim();
+            const amount = parseFloat(amountInput.value);
+            const gender = genderInput ? genderInput.value : 'M';
+            const status = statusInput.value;
+            const method = methodInput.value;
+
+            if (!name || isNaN(amount)) return;
+
+            const newParticipant = {
+                id: Date.now(),
+                name: name,
+                gender: gender,
+                amount: amount,
+                status: status,
+                method: method,
+                team: 'Sem Time'
+            };
+
+            participants.push(newParticipant);
+            saveData();
+            renderList();
+
+            nameInput.value = '';
+            amountInput.value = '';
+            nameInput.focus();
+            showToast('Participante adicionado com sucesso!', 'success');
+        }
+
+        // Toggle Status
+        function toggleStatus(id) {
+            const p = participants.find(item => item.id === id);
+            if (p) {
+                p.status = p.status === 'pago' ? 'pendente' : 'pago';
+                saveData();
+                renderList();
+                showToast(`Status de ${p.name} alterado!`, 'info');
+            }
+        }
+
+        // Delete Participant
+        function deleteParticipant(id) {
+            participants = participants.filter(item => item.id !== id);
+            saveData();
+            renderList();
+            showToast('Participante removido.', 'info');
+        }
+
+        // Goal Modals
+        function openGoalModal() {
+            document.getElementById('goal-input').value = courtGoal;
+            document.getElementById('goal-modal').classList.remove('hidden');
+            document.getElementById('goal-modal').classList.add('flex');
+        }
+
+        function closeGoalModal() {
+            document.getElementById('goal-modal').classList.add('hidden');
+            document.getElementById('goal-modal').classList.remove('flex');
+        }
+
+        function handleSaveGoal(e) {
+            e.preventDefault();
+            const val = parseFloat(document.getElementById('goal-input').value);
+            if (!isNaN(val) && val >= 0) {
+                courtGoal = val;
+                saveData();
+                updateDashboard();
+                closeGoalModal();
+                showToast('Meta atualizada!', 'success');
+            }
+        }
+
+        // Pix Modals
+        function openPixModal() {
+            document.getElementById('pix-input').value = pixKey;
+            document.getElementById('pix-modal').classList.remove('hidden');
+            document.getElementById('pix-modal').classList.add('flex');
+        }
+
+        function closePixModal() {
+            document.getElementById('pix-modal').classList.add('hidden');
+            document.getElementById('pix-modal').classList.remove('flex');
+        }
+
+        function handleSavePixKey(e) {
+            e.preventDefault();
+            const val = document.getElementById('pix-input').value.trim();
+            if (val) {
+                pixKey = val;
+                saveData();
+                document.getElementById('pix-key-display').innerText = pixKey;
+                closePixModal();
+                showToast('Chave PIX atualizada!', 'success');
+            }
+        }
+
+        function copyPixKey() {
+            if (!pixKey) {
+                showToast('Nenhuma chave PIX cadastrada!', 'error');
+                return;
+            }
+            const tempInput = document.createElement('input');
+            tempInput.value = pixKey;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            document.execCommand('copy');
+            document.body.removeChild(tempInput);
+            showToast('Chave PIX copiada!', 'success');
+        }
+
+        // Toast Feedback
+        function showToast(msg, type = 'info') {
+            const toast = document.getElementById('toast');
+            const toastMsg = document.getElementById('toast-message');
+            const toastIcon = document.getElementById('toast-icon');
+
+            toastMsg.innerText = msg;
+            if (type === 'success') {
+                toastIcon.className = 'fa-solid fa-circle-check text-emerald-400';
+            } else if (type === 'error') {
+                toastIcon.className = 'fa-solid fa-circle-xmark text-rose-400';
+            } else {
+                toastIcon.className = 'fa-solid fa-circle-info text-sky-400';
+            }
+
+            toast.classList.remove('opacity-0', 'pointer-events-none');
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'pointer-events-none');
+            }, 3000);
+        }
+
+        // ROULETTE IMPLEMENTATION
+        let currentAngle = 0;
+        let isSpinning = false;
+        let isDragging = false;
+        let startAngle = 0;
+        let velocity = 0;
+        let animFrameId = null;
+
+        function drawRoulette() {
+            const canvas = document.getElementById('roulette-canvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const width = canvas.width;
+            const height = canvas.height;
+            const centerX = width / 2;
+            const centerY = height / 2;
+            const radius = centerX - 10;
+
+            ctx.clearRect(0, 0, width, height);
+
+            if (participants.length === 0) {
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+                ctx.fillStyle = currentTheme === 'dark' ? '#334155' : '#e2e8f0';
+                ctx.fill();
+                ctx.fillStyle = currentTheme === 'dark' ? '#94a3b8' : '#64748b';
+                ctx.font = 'bold 14px Inter';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('Sem jogadores', centerX, centerY);
+                return;
+            }
+
+            const sliceAngle = (2 * Math.PI) / participants.length;
+            const colorsLight = ['#f59e0b', '#0284c7', '#10b981', '#ec4899', '#8b5cf6', '#f97316', '#06b6d4'];
+            const colorsDark = ['#b45309', '#0369a1', '#047857', '#be185d', '#6d28d9', '#c2410c', '#0e7490'];
+            const colors = currentTheme === 'dark' ? colorsDark : colorsLight;
+
+            participants.forEach((p, idx) => {
+                const angle = currentAngle + idx * sliceAngle;
+
+                // Slice
+                ctx.beginPath();
+                ctx.moveTo(centerX, centerY);
+                ctx.arc(centerX, centerY, radius, angle, angle + sliceAngle);
+                ctx.closePath();
+                ctx.fillStyle = colors[idx % colors.length];
+                ctx.fill();
+                ctx.strokeStyle = currentTheme === 'dark' ? '#1e293b' : '#ffffff';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                // Text
+                ctx.save();
+                ctx.translate(centerX, centerY);
+                ctx.rotate(angle + sliceAngle / 2);
+                ctx.textAlign = 'right';
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 12px Inter';
+                const text = p.name.length > 14 ? p.name.substring(0, 12) + '...' : p.name;
+                ctx.fillText(text, radius - 15, 4);
+                ctx.restore();
+            });
+
+            // Center Pin
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, 18, 0, 2 * Math.PI);
+            ctx.fillStyle = currentTheme === 'dark' ? '#0f172a' : '#ffffff';
+            ctx.fill();
+            ctx.strokeStyle = '#f59e0b';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+        }
+
+        function spinRoulette() {
+            if (isSpinning || participants.length === 0) return;
+            isSpinning = true;
+            velocity = Math.random() * 0.2 + 0.3;
+            animateSpin();
+        }
+
+        function animateSpin() {
+            if (velocity > 0.001) {
+                currentAngle += velocity;
+                velocity *= 0.985;
+                drawRoulette();
+                animFrameId = requestAnimationFrame(animateSpin);
+            } else {
+                isSpinning = false;
+                cancelAnimationFrame(animFrameId);
+                determineWinner();
+            }
+        }
+
+        function determineWinner() {
+            if (participants.length === 0) return;
+            const sliceAngle = (2 * Math.PI) / participants.length;
+            const normalizedAngle = (1.5 * Math.PI - (currentAngle % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+            const winnerIndex = Math.floor(normalizedAngle / sliceAngle) % participants.length;
+            const winner = participants[winnerIndex];
+
+            if (winner) {
+                currentWinnerId = winner.id;
+                document.getElementById('roulette-winner-name').innerText = winner.name;
+                document.getElementById('modal-player-team-select').value = winner.team || 'Sem Time';
+                document.getElementById('roulette-winner-modal').classList.remove('hidden');
+                document.getElementById('roulette-winner-modal').classList.add('flex');
+            }
+        }
+
+        function closeRouletteModal() {
+            document.getElementById('roulette-winner-modal').classList.add('hidden');
+            document.getElementById('roulette-winner-modal').classList.remove('flex');
+        }
+
+        function assignWinnerTeam(teamName) {
+            if (!currentWinnerId) return;
+            const p = participants.find(item => item.id === currentWinnerId);
+            if (p) {
+                p.team = teamName;
+                saveData();
+                renderTeams();
+                showToast(`${p.name} foi para o ${teamName}!`, 'success');
+            }
+        }
+
+        // Drag / Touch Roulette Interactivity
+        const canvasEl = document.getElementById('roulette-canvas');
+        if (canvasEl) {
+            const getAngleFromEvent = (e) => {
+                const rect = canvasEl.getBoundingClientRect();
+                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                const x = clientX - (rect.left + rect.width / 2);
+                const y = clientY - (rect.top + rect.height / 2);
+                return Math.atan2(y, x);
+            };
+
+            const startDrag = (e) => {
+                if (isSpinning || participants.length === 0) return;
+                isDragging = true;
+                startAngle = getAngleFromEvent(e) - currentAngle;
+            };
+
+            const doDrag = (e) => {
+                if (!isDragging) return;
+                currentAngle = getAngleFromEvent(e) - startAngle;
+                drawRoulette();
+            };
+
+            const stopDrag = () => {
+                if (isDragging) {
+                    isDragging = false;
+                }
+            };
+
+            canvasEl.addEventListener('mousedown', startDrag);
+            window.addEventListener('mousemove', doDrag);
+            window.addEventListener('mouseup', stopDrag);
+
+            canvasEl.addEventListener('touchstart', startDrag, { passive: true });
+            window.addEventListener('touchmove', doDrag, { passive: true });
+            window.addEventListener('touchend', stopDrag);
+        }
+
+        // TEAMS MANAGEMENT
+        function renderTeams() {
+            const container = document.getElementById('teams-container');
+            if (!container) return;
+            container.innerHTML = '';
+
+            const teamsMap = {};
+            participants.forEach(p => {
+                const teamName = p.team || 'Sem Time';
+                if (!teamsMap[teamName]) teamsMap[teamName] = [];
+                teamsMap[teamName].push(p);
+            });
+
+            // Standard teams order
+            const knownTeams = ['Time 1', 'Time 2', 'Time 3', 'Time 4', 'Banco', 'Sem Time'];
+            const allTeamNames = Array.from(new Set([...knownTeams, ...Object.keys(teamsMap)]));
+
+            allTeamNames.forEach(teamName => {
+                const members = teamsMap[teamName] || [];
+                if (members.length === 0 && (teamName === 'Time 3' || teamName === 'Time 4')) return;
+
+                const card = document.createElement('div');
+                card.className = 'glass-card rounded-2xl p-4 shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col justify-between space-y-3';
+
+                const memberItems = members.map(m => `
+                    <li class="flex items-center justify-between text-xs py-1.5 border-b border-slate-100 dark:border-slate-800 last:border-none">
+                        <span class="font-medium text-slate-800 dark:text-slate-200">
+                            ${escapeHtml(m.name)} 
+                            ${m.gender === 'F' ? '<span class="text-pink-500 font-bold ml-1">♀</span>' : '<span class="text-blue-500 font-bold ml-1">♂</span>'}
+                        </span>
+                        <select onchange="changePlayerTeam(${m.id}, this.value)" class="text-[11px] py-1 px-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                            ${allTeamNames.map(t => `<option value="${t}" ${t === teamName ? 'selected' : ''}>${t}</option>`).join('')}
+                        </select>
+                    </li>
+                `).join('');
+
+                card.innerHTML = `
+                    <div>
+                        <div class="flex justify-between items-center mb-2 pb-2 border-b border-slate-200 dark:border-slate-700">
+                            <h4 class="font-bold text-sm text-amber-600 dark:text-amber-400 flex items-center">
+                                <i class="fa-solid fa-shield-halved mr-2"></i> ${escapeHtml(teamName)}
+                                <span class="ml-2 text-xs text-slate-400 font-normal">(${members.length})</span>
+                            </h4>
+                            <button onclick="openRenameTeamModal('${escapeHtml(teamName)}')" title="Renomear Time" class="text-xs text-slate-400 hover:text-amber-500 p-1">
+                                <i class="fa-solid fa-pen"></i>
+                            </button>
+                        </div>
+                        <ul class="space-y-0.5">
+                            ${members.length > 0 ? memberItems : '<li class="text-xs text-slate-400 dark:text-slate-500 italic py-2">Nenhum jogador cadastrado</li>'}
+                        </ul>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function changePlayerTeam(playerId, newTeam) {
+            const p = participants.find(item => item.id === playerId);
+            if (p) {
+                p.team = newTeam;
+                saveData();
+                renderTeams();
+                showToast(`${p.name} movido para ${newTeam}`, 'info');
+            }
+        }
+
+        function autoSortTeams() {
+            const filter = document.getElementById('team-filter-select').value;
+            const teamSize = parseInt(document.getElementById('team-size-select').value) || 4;
+
+            let eligible = participants.slice();
+            if (filter === 'pago') {
+                eligible = eligible.filter(p => p.status === 'pago');
+            }
+
+            if (eligible.length === 0) {
+                showToast('Nenhum jogador elegível para o sorteio!', 'error');
+                return;
+            }
+
+            // Shuffle
+            eligible.sort(() => Math.random() - 0.5);
+
+            eligible.forEach((p, idx) => {
+                const teamNum = Math.floor(idx / teamSize) + 1;
+                p.team = `Time ${teamNum}`;
+            });
+
+            saveData();
+            renderTeams();
+            showToast('Times sorteados automaticamente!', 'success');
+        }
+
+        function resetTeams() {
+            participants.forEach(p => p.team = 'Sem Time');
+            saveData();
+            renderTeams();
+            showToast('Divisão de times resetada.', 'info');
+        }
+
+        // RENAME TEAM MODAL
+        function openRenameTeamModal(teamName) {
+            editingTeamOldName = teamName;
+            document.getElementById('rename-team-input').value = teamName;
+            document.getElementById('rename-team-modal').classList.remove('hidden');
+            document.getElementById('rename-team-modal').classList.add('flex');
+        }
+
+        function closeRenameTeamModal() {
+            document.getElementById('rename-team-modal').classList.add('hidden');
+            document.getElementById('rename-team-modal').classList.remove('flex');
+        }
+
+        function handleSaveTeamName(e) {
+            e.preventDefault();
+            const newName = document.getElementById('rename-team-input').value.trim();
+            if (newName && editingTeamOldName) {
+                participants.forEach(p => {
+                    if (p.team === editingTeamOldName) {
+                        p.team = newName;
+                    }
+                });
+                saveData();
+                renderTeams();
+                closeRenameTeamModal();
+                showToast(`Time renomeado para ${newName}`, 'success');
+            }
+        }
+
+        // MATCHES / PLACARES MANAGEMENT
+        function handleAddMatch(e) {
+            e.preventDefault();
+            const dateInput = document.getElementById('match-date');
+            const teamAInput = document.getElementById('match-team-a');
+            const scoreAInput = document.getElementById('match-score-a');
+            const teamBInput = document.getElementById('match-team-b');
+            const scoreBInput = document.getElementById('match-score-b');
+            const notesInput = document.getElementById('match-notes');
+
+            const date = dateInput.value;
+            const teamA = teamAInput.value.trim();
+            const scoreA = parseInt(scoreAInput.value);
+            const teamB = teamBInput.value.trim();
+            const scoreB = parseInt(scoreBInput.value);
+            const notes = notesInput.value.trim();
+
+            if (!date || !teamA || !teamB || isNaN(scoreA) || isNaN(scoreB)) return;
+
+            const newMatch = {
+                id: Date.now(),
+                date: date,
+                teamA: teamA,
+                scoreA: scoreA,
+                teamB: teamB,
+                scoreB: scoreB,
+                notes: notes
+            };
+
+            matches.unshift(newMatch); // Adiciona no início da lista (mais recentes primeiro)
+            saveData();
+            renderMatches();
+
+            // Reseta campos preservando a data
+            teamAInput.value = '';
+            scoreAInput.value = '';
+            teamBInput.value = '';
+            scoreBInput.value = '';
+            notesInput.value = '';
+            teamAInput.focus();
+
+            showToast('Placar da partida registrado com sucesso!', 'success');
+        }
+
+        function renderMatches() {
+            const container = document.getElementById('matches-list-container');
+            const emptyState = document.getElementById('empty-matches-state');
+            const countBadge = document.getElementById('match-count-badge');
+
+            if (!container) return;
+            container.innerHTML = '';
+
+            countBadge.innerText = `${matches.length} jogo(s)`;
+
+            if (matches.length === 0) {
+                emptyState.classList.remove('hidden');
+                return;
+            } else {
+                emptyState.classList.add('hidden');
+            }
+
+            matches.forEach(m => {
+                const card = document.createElement('div');
+                card.className = 'p-4 rounded-xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700/80 flex flex-col justify-between space-y-2 shadow-sm';
+
+                // Data formatada
+                const dateParts = m.date.split('-');
+                const formattedDate = `${dateParts[2]}/${dateParts[1]}/${dateParts[0]}`;
+
+                // Vencedor
+                let winnerA = m.scoreA > m.scoreB;
+                let winnerB = m.scoreB > m.scoreA;
+
+                card.innerHTML = `
+                    <div class="flex justify-between items-center text-xs text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700/60 pb-2">
+                        <span class="font-bold flex items-center text-amber-600 dark:text-amber-400">
+                            <i class="fa-regular fa-calendar-check mr-1.5"></i> ${formattedDate}
+                        </span>
+                        <div class="flex items-center space-x-2">
+                            ${m.notes ? `<span class="italic text-[11px] truncate max-w-[150px]">${escapeHtml(m.notes)}</span>` : ''}
+                            <button onclick="deleteMatch(${m.id})" title="Excluir placar" class="text-slate-400 hover:text-rose-500 transition p-1">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-5 items-center text-center py-2">
+                        <!-- Time A -->
+                        <div class="col-span-2 flex flex-col items-center">
+                            <span class="font-extrabold text-sm ${winnerA ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-700 dark:text-slate-200'}">
+                                ${escapeHtml(m.teamA)} ${winnerA ? '<i class="fa-solid fa-trophy text-amber-500 text-xs ml-1" title="Vencedor"></i>' : ''}
+                            </span>
+                        </div>
+
+                        <!-- Placar -->
+                        <div class="col-span-1 flex items-center justify-center">
+                            <span class="px-3 py-1 rounded-lg bg-amber-500 text-white font-black text-base shadow-sm">
+                                ${m.scoreA} x ${m.scoreB}
+                            </span>
+                        </div>
+
+                        <!-- Time B -->
+                        <div class="col-span-2 flex flex-col items-center">
+                            <span class="font-extrabold text-sm ${winnerB ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-700 dark:text-slate-200'}">
+                                ${winnerB ? '<i class="fa-solid fa-trophy text-amber-500 text-xs mr-1" title="Vencedor"></i>' : ''}${escapeHtml(m.teamB)}
+                            </span>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function deleteMatch(id) {
+            matches = matches.filter(m => m.id !== id);
+            saveData();
+            renderMatches();
+            showToast('Placar removido.', 'info');
+        }
+
+        // Helper escape HTML
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+    </script>
+</body>
+</html>
